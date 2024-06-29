@@ -1,0 +1,123 @@
+import customtkinter as ctk
+import json
+from tkinter import filedialog
+
+def calculate_gpa(grades):
+    def grade_to_gpa(grade):
+        if 95 <= grade <= 100:
+            return 4.0
+        elif 90 <= grade < 95:
+            return 3.7
+        elif 85 <= grade < 90:
+            return 3.3
+        elif 80 <= grade < 85:
+            return 3.0
+        elif 75 <= grade < 80:
+            return 2.7
+        elif 70 <= grade < 75:
+            return 2.3
+        elif 65 <= grade < 70:
+            return 2.0
+        elif 60 <= grade < 65:
+            return 1.7
+        else:
+            return 0.0
+    
+    total_gpa = sum(grade_to_gpa(grade) for grade in grades)
+    return total_gpa / len(grades) if grades else 0
+
+def calculate_semester_gpas(semesters):
+    semester_gpas = [calculate_gpa(grades) for grades in semesters]
+    overall_gpa = calculate_gpa([grade for grades in semesters for grade in grades])
+    return semester_gpas, overall_gpa
+
+# GUI code
+class GPACalculatorGUI(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("GPA Calculator")
+        self.geometry("600x400")
+        
+        self.semester_entries = []
+        self.semester_gpa_labels = []
+
+        self.add_semester_button = ctk.CTkButton(self, text="Add Semester", command=self.add_semester)
+        self.add_semester_button.grid(row=0, column=0, padx=10, pady=10)
+
+        self.calculate_button = ctk.CTkButton(self, text="Calculate GPA", command=self.calculate_gpa)
+        self.calculate_button.grid(row=0, column=1, padx=10, pady=10)
+
+        self.save_button = ctk.CTkButton(self, text="Save Data", command=self.save_data)
+        self.save_button.grid(row=0, column=2, padx=10, pady=10)
+
+        self.load_button = ctk.CTkButton(self, text="Load Data", command=self.load_data)
+        self.load_button.grid(row=0, column=3, padx=10, pady=10)
+
+        self.result_label = ctk.CTkLabel(self, text="")
+        self.result_label.grid(row=0, column=4, padx=10, pady=10)
+
+    def add_semester(self):
+        row = len(self.semester_entries) + 1
+        semester_label = ctk.CTkLabel(self, text=f"Semester {row}")
+        semester_label.grid(row=row, column=0, padx=10, pady=5)
+
+        grades_entry = ctk.CTkEntry(self, placeholder_text="Enter grades separated by commas")
+        grades_entry.grid(row=row, column=1, padx=10, pady=5)
+        
+        gpa_label = ctk.CTkLabel(self, text="")
+        gpa_label.grid(row=row, column=2, padx=10, pady=5)
+
+        self.semester_entries.append(grades_entry)
+        self.semester_gpa_labels.append(gpa_label)
+
+    def calculate_gpa(self):
+        semesters = []
+        for entry in self.semester_entries:
+            grades = list(map(int, entry.get().split(',')))
+            semesters.append(grades)
+
+        semester_gpas, overall_gpa = calculate_semester_gpas(semesters)
+
+        for gpa_label, gpa in zip(self.semester_gpa_labels, semester_gpas):
+            gpa_label.configure(text=f"GPA: {gpa:.2f}")
+
+        self.result_label.configure(text=f"Overall GPA: {overall_gpa:.2f}")
+
+    def save_data(self):
+        data = []
+        for entry, gpa_label in zip(self.semester_entries, self.semester_gpa_labels):
+            grades = entry.get().split(',')
+            gpa = gpa_label.cget("text").split(": ")[1] if gpa_label.cget("text") else "N/A"
+            data.append({"grades": grades, "gpa": gpa})
+        
+        file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if file_path:
+            with open(file_path, "w") as file:
+                json.dump(data, file)
+
+    def load_data(self):
+        file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        if file_path:
+            with open(file_path, "r") as file:
+                data = json.load(file)
+            
+            # Clear existing entries
+            for entry in self.semester_entries:
+                entry.destroy()
+            for label in self.semester_gpa_labels:
+                label.destroy()
+            self.semester_entries.clear()
+            self.semester_gpa_labels.clear()
+            
+            # Load data
+            for i, semester in enumerate(data):
+                self.add_semester()
+                self.semester_entries[i].insert(0, ",".join(semester["grades"]))
+                if semester["gpa"] != "N/A":
+                    self.semester_gpa_labels[i].configure(text=f"GPA: {semester['gpa']}")
+            
+            self.calculate_gpa()
+
+if __name__ == "__main__":
+    app = GPACalculatorGUI()
+    app.mainloop()
